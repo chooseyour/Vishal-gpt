@@ -1,24 +1,39 @@
 import os
-import telebot
+import logging
+from telegram import Update
+from telegram.ext import ApplicationBuilder, ContextTypes, CommandHandler, MessageHandler, filters
 import openai
 
-TELEGRAM_TOKEN = os.getenv("TELEGRAM_TOKEN")
-OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
+# Set OpenAI API key
+openai.api_key = os.getenv("OPENAI_API_KEY")
 
-openai.api_key = OPENAI_API_KEY
-bot = telebot.TeleBot(TELEGRAM_TOKEN)
+# Set logging
+logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.INFO)
+logger = logging.getLogger(__name__)
 
-@bot.message_handler(func=lambda m: True)
-def reply(m):
+# /start command
+async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await update.message.reply_text("Hello! I'm VishalGPT 🤖. Ask me anything.")
+
+# Handle normal messages
+async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user_message = update.message.text
     try:
-        r = openai.ChatCompletion.create(
+        response = openai.ChatCompletion.create(
             model="gpt-3.5-turbo",
-            messages=[{"role":"user","content":m.text}]
+            messages=[{"role": "user", "content": user_message}]
         )
-        bot.reply_to(m, r.choices[0].message.content)
+        reply = response['choices'][0]['message']['content']
     except Exception as e:
-        bot.reply_to(m, f"Error: {e}")
+        reply = f"Error: {str(e)}"
+    await update.message.reply_text(reply)
 
-if __name__ == "__main__":
-    bot.infinity_polling()
-add main file
+# Main function
+if __name__ == '__main__':
+    token = os.getenv("TELEGRAM_BOT_TOKEN")
+    app = ApplicationBuilder().token(token).build()
+
+    app.add_handler(CommandHandler("start", start))
+    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
+
+    app.run_polling()
