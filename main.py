@@ -1,19 +1,31 @@
 import os
-import logging
-from telegram import Update
-from telegram.ext import ApplicationBuilder, ContextTypes, CommandHandler, MessageHandler, filters
 import openai
+from telegram import Update
+from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, ContextTypes, filters
 
-# Set your OpenAI API key securely from environment variable
 openai.api_key = os.getenv("OPENAI_API_KEY")
+telegram_token = os.getenv("TELEGRAM_BOT_TOKEN")
 
-# Setup logging for debugging
-logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.INFO)
-logger = logging.getLogger(__name__)
-
-# Start command handler
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text("Hello! 🤖 I'm VishalGPT. Ask me anything!")
+    await update.message.reply_text("Hello! VishalGPT yahan hai. Apka sawal bhejiye ✨")
 
-# Message handler to get AI response
-async def handle_message
+async def chat(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user_msg = update.message.text
+    try:
+        completion = openai.ChatCompletion.create(
+            model="gpt-3.5-turbo",
+            messages=[{"role": "user", "content": user_msg}]
+        )
+        reply = completion.choices[0].message.content
+        await update.message.reply_text(reply)
+    except Exception as e:
+        await update.message.reply_text(f"Error: {e}")
+
+def main():
+    app = ApplicationBuilder().token(telegram_token).build()
+    app.add_handler(CommandHandler("start", start))
+    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, chat))
+    app.run_polling()
+
+if __name__ == "__main__":
+    main()
